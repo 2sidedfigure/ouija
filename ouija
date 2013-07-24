@@ -4,6 +4,18 @@
 
 var
 
+prog = require('commander'),
+pkg = require('./package.json');
+
+prog.version(pkg.version)
+    .usage('[options]')
+    .option('-p, --port <n>', 'The port to bind the proxy server to, defaults to 6660', parseInt)
+    .parse(process.argv);
+
+// if the user hasn't requested help or the version, time to get to work
+
+var
+
 express = require('express'),
 phantom = require('node-phantom'),
 app = express();
@@ -111,4 +123,7 @@ app.all('*', function(req, res) {
     }, { parameters: params });
 });
 
-app.listen('8080');
+var server = app.listen(prog.port || 6660),
+    address = server.address();
+
+console.log('=> Ouija listening on ' + address.address + ':' + address.port);
