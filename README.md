@@ -17,6 +17,19 @@ $ npm install ouija
 
 ## Usage
 
+Start the server by running:
+
+```
+$ ./ouija
+```
+
+...which defaults to port 6660. You can specify a port to bind to at startup by
+using the `-p, --port` option:
+
+```
+$ ./ouija -p 8080
+```
+
 Once the server is up and running, simply issue requests to it like you would
 to any other proxy server. This means providing the host when requesting the
 resource, e.g.:
