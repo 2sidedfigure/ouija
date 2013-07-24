@@ -1,0 +1,23 @@
+{
+    "name": "ouija",
+    "version": "0.0.0",
+    "description": "",
+    "author": {
+        "name": "± ryan"
+    },
+    "bin": {
+        "./ouija"
+    },
+    "dependencies": {
+        "express": "3.x.x",
+        "node-phantom": "0.2.x"
+    },
+    "engines": {
+        "node": ">= 0.8.0"
+    },
+    "keywords": {
+        "phantom",
+        "phantomjs",
+        "proxy"
+    }
+}

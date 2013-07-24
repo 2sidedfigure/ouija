@@ -1,0 +1,105 @@
+#!/usr/bin/env node
+
+"use strict";
+
+var
+
+express = require('express'),
+phantom = require('node-phantom'),
+app = express();
+
+//clear out the default 'x-powered-by' header
+app.disable('x-powered-by');
+
+app.use(express.bodyParser());
+
+app.all('*', function(req, res) {
+    var params = {
+            'disk-cache': true,
+            'ignore-ssl-errors': true,
+            'max-disk-cache-size': 10*1024 // 10 Mb
+        };
+
+    phantom.create(function(err, ph) {
+
+        ph.createPage(function(err, page) {
+            console.log('=> Opening ' + req.url);
+
+            var response, 
+                content,
+                customHeaderRE = /^ouija\-pass\-(.*)$/i,
+                customHeaders = {},
+                sendResponse = function(resBody) {
+                    ph.exit();
+
+                    response.headers.forEach(function(h) {
+                        res.set(h.name, h.value);
+                    });
+
+                    // ensure we have the correct content-length header in case
+                    // the DOM has been modified
+                    res.set('Content-Length', (new Buffer(resBody)).length);
+
+                    return res.send(response.status, resBody);
+                };
+
+            // set the headers to be passed by phantom
+            for (var h in req.headers) {
+                var match = h.match(customHeaderRE);
+
+                if (match && match[1]) {
+                    customHeaders[match[1]] = req.headers[h];
+                }
+            }
+            page.set('customHeaders', customHeaders);
+
+            // NB: need to use the onCallback handler to get around some of the
+            // funny scoping that happens when using phantomjs
+            //
+            // the object argument becomes the primary means of passing data around
+            page.onCallback = function(obj) {
+                if (!response && obj.response && obj.response.url == req.url) {
+                    response = obj.response;
+                }
+
+                if (obj.next) {
+                    if (req.get('ouija-get-unmodified-content')) {
+                        ph.createPage(function(err, cachedPage) {
+                            cachedPage.set('settings', {
+                                javascriptEnabled: false,
+                                loadImages: false
+                            });
+
+                            cachedPage.set('customHeaders', customHeaders);
+
+                            cachedPage.open(req.url, function(err, status) {
+                                cachedPage.get('content', function(err, content) {
+                                    sendResponse(content);
+                                });
+                            });
+                        });
+                    } else {
+                        page.get('content', function(err, content) {
+                            sendResponse(content);
+                        });
+                    }
+                }
+            };
+
+            page.setFn('onResourceReceived', function(resp) {
+                page.onCallback({ 
+                    response: resp,
+                });
+            });
+
+            page.open(req.url, function(err, status) {
+                page.onCallback({
+                    next: true
+                });
+            });
+        });
+
+    }, { parameters: params });
+});
+
+app.listen('8080');
