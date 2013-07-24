@@ -20,6 +20,15 @@ app.all('*', function(req, res) {
             'max-disk-cache-size': 10*1024 // 10 Mb
         };
 
+    // use a proxy if specified
+    ['proxy', 'proxy-type', 'proxy-auth'].forEach(function(p) {
+        var header = req.get('ouija-' + p);
+
+        if (header) {
+            params[p] = header;
+        }
+    });
+
     phantom.create(function(err, ph) {
 
         ph.createPage(function(err, page) {

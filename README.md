@@ -38,6 +38,14 @@ case-insensitive.
    Passing this header will ensure you recieve the unmodified source. The value
    of the header is inconsequential; Ouija only checks for its presence.
 
+ - **Ouija-Proxy**: Specify a proxy server to use (e.g. 10.10.10.10:8080).
+
+ - **Ouija-Proxy-Type**: Set the type of proxy server (one of http, socks5 or 
+   none; defaults to http).
+
+ - **Ouija-Proxy-Auth**: Authentication information for the proxy server
+   (e.g. username:password).
+
  - **Ouija-Pass-***: Any headers prefixed with *Ouija-Pass-* will be used in
    the resulting request (with *Ouija-Pass-* stripped from the name). E.g.,
    passing:
