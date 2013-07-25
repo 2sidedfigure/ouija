@@ -1,18 +1,24 @@
 # Ouija
 
-Server software for proxying HTTP requests through 
-[PhantomJS](http://phantomjs.org). It'll make your automated requests look 
+Server software for proxying HTTP requests through
+[PhantomJS](http://phantomjs.org). It'll make your automated requests look
 *more* human!
 
 ## Requirements
 
-[PhantomJS](http://phantomjs.org) must be 
+[PhantomJS](http://phantomjs.org) must be
 [installed](http://phantomjs.org/download.html) and available in the `PATH`.
+
+## Installation
+
+```
+$ npm install ouija
+```
 
 ## Usage
 
-Once the server is up and running, simply issue requests to it like you would 
-to any other proxy server. This means providing the host when requesting the 
+Once the server is up and running, simply issue requests to it like you would
+to any other proxy server. This means providing the host when requesting the
 resource, e.g.:
 
  > GET http://example.com/foo/bar.html
@@ -23,17 +29,17 @@ resource, e.g.:
 
 ### Special HTTP Headers
 
-Ouija accepts some special HTTP headers for manipulating the response or 
-configuring the resulting request. As usual, the header names are 
+Ouija accepts some special HTTP headers for manipulating the response or
+configuring the resulting request. As usual, the header names are
 case-insensitive.
 
- - **Ouija-Get-Unmodified-Content**: Normally, if scripts on the page modify 
-   the DOM of the requested page, Ouija will return the modified source. 
-   Passing this header will ensure you recieve the unmodified source. The value 
+ - **Ouija-Get-Unmodified-Content**: Normally, if scripts on the page modify
+   the DOM of the requested page, Ouija will return the modified source.
+   Passing this header will ensure you recieve the unmodified source. The value
    of the header is inconsequential; Ouija only checks for its presence.
 
- - **Ouija-Pass-***: Any headers prefixed with *Ouija-Pass-* will be used in 
-   the resulting request (with *Ouija-Pass-* stripped from the name). E.g., 
+ - **Ouija-Pass-***: Any headers prefixed with *Ouija-Pass-* will be used in
+   the resulting request (with *Ouija-Pass-* stripped from the name). E.g.,
    passing:
 
     > Ouija-Pass-User-Agent: Ouijabot
