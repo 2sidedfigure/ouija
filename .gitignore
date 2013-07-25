@@ -1,6 +1,7 @@
 *~
 *.sw?
 *.bak
+npm-debug.log
 
 node_modules
 test

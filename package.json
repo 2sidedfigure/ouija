@@ -1,13 +1,11 @@
 {
     "name": "ouija",
     "version": "0.0.0",
-    "description": "",
+    "description": "Server software for proxying HTTP requests through PhantomJS. It'll make your automated requests look more human!",
     "author": {
         "name": "± ryan"
     },
-    "bin": {
-        "./ouija"
-    },
+    "bin": "./ouija",
     "dependencies": {
         "express": "3.x.x",
         "node-phantom": "0.2.x"
@@ -15,9 +13,9 @@
     "engines": {
         "node": ">= 0.8.0"
     },
-    "keywords": {
+    "keywords": [
         "phantom",
         "phantomjs",
         "proxy"
-    }
+    ]
 }
