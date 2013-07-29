@@ -18,6 +18,7 @@ var
 
 express = require('express'),
 phantom = require('node-phantom'),
+url = require('url'),
 app = express();
 
 //clear out the default 'x-powered-by' header
@@ -47,9 +48,9 @@ app.all('*', function(req, res) {
             console.log('=> Opening ' + req.url);
 
             var response, 
-                content,
                 customHeaderRE = /^ouija\-pass\-(.*)$/i,
                 customHeaders = {},
+                parsedUrl = url.parse(req.url),
                 sendResponse = function(resBody) {
                     ph.exit();
 
@@ -79,8 +80,13 @@ app.all('*', function(req, res) {
             //
             // the object argument becomes the primary means of passing data around
             page.onCallback = function(obj) {
-                if (!response && obj.response && obj.response.url == req.url) {
-                    response = obj.response;
+                if (obj.response) {
+                    var phantomParsedUrl = url.parse(obj.response.url);
+
+                    // compare parsed and formatted urls to account for trailing slashes, etc.
+                    if (!response && url.format(phantomParsedUrl) == url.format(parsedUrl)) {
+                        response = obj.response;
+                    }
                 }
 
                 if (obj.next) {
