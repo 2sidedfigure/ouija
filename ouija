@@ -19,6 +19,7 @@ var
 express = require('express'),
 phantom = require('node-phantom'),
 url = require('url'),
+setCookieParser = require('./lib/setcookie').parser,
 app = express();
 
 //clear out the default 'x-powered-by' header
@@ -48,21 +49,35 @@ app.all('*', function(req, res) {
             console.log('=> Opening ' + req.url);
 
             var response, 
+                cookies = {},
                 customHeaderRE = /^ouija\-pass\-(.*)$/i,
                 customHeaders = {},
                 parsedUrl = url.parse(req.url),
                 sendResponse = function(resBody) {
                     ph.exit();
 
-                    response.headers.forEach(function(h) {
-                        res.set(h.name, h.value);
+                    response && response.headers && response.headers.forEach(function(h) {
+                        if (!/^set\-cookie/i.test(h.name)) {
+                            res.set(h.name, h.value);
+                        }
                     });
+
+                    for (var c in cookies) {
+                        var cookie = cookies[c];
+
+                        cookie.maxAge && (cookie.maxAge *= 1000);
+                        if (cookie.expires && !(cookie.expires instanceof Date)) {
+                            cookie.expires = new Date(cookie.expires);
+                        }
+
+                        res.cookie(cookies[c].name, cookies[c].value, cookies[c]);
+                    }
 
                     // ensure we have the correct content-length header in case
                     // the DOM has been modified
                     res.set('Content-Length', (new Buffer(resBody)).length);
 
-                    return res.send(response.status, resBody);
+                    return res.send(response.status || 200, resBody);
                 };
 
             // set the headers to be passed by phantom
@@ -87,6 +102,32 @@ app.all('*', function(req, res) {
                     if (!response && url.format(phantomParsedUrl) == url.format(parsedUrl)) {
                         response = obj.response;
                     }
+
+                    if (response.headers && phantomParsedUrl.host == parsedUrl.host) {
+                        response.headers.forEach(function(h) {
+                            if (/^set\-cookie/i.test(h.name)) {
+                                var cookies = setCookieParser(h.value);
+
+                                obj.cookies = obj.cookies
+                                    ? obj.cookies.concat(cookies)
+                                    : cookies;
+                            }
+                        });
+                    }
+                }
+
+                if (obj.cookies) {
+                    obj.cookies = Array.isArray(obj.cookies)
+                        ? obj.cookies
+                        : [ obj.cookies ];
+
+                    obj.cookies.forEach(function(c) {
+                        // this will generally favor cookies set by headers to ones
+                        // retrieved by phantom; this is desired because of phantom
+                        // appears to assign the expiry date of one cookie to all on
+                        // the page
+                        cookies[c.name] || (cookies[c.name] = c);
+                    });
                 }
 
                 if (obj.next) {
@@ -120,8 +161,11 @@ app.all('*', function(req, res) {
             });
 
             page.open(req.url, function(err, status) {
-                page.onCallback({
-                    next: true
+                page.get('cookies', function(err, cookieData) {
+                    page.onCallback({
+                        next: true,
+                        cookies: cookieData
+                    });
                 });
             });
         });
