@@ -44,6 +44,14 @@ app.all('*', function(req, res) {
     });
 
     phantom.create(function(err, ph) {
+        // catch when the phantom process exits unexpectedly
+        ph.on('exit', function(code, signal) {
+            if (code !== 0) {
+                console.error(signal);
+            }
+
+            res.send(500, 'phantomjs process exited with signal ' + signal);
+        });
 
         ph.createPage(function(err, page) {
             console.log('=> Opening ' + req.url);
