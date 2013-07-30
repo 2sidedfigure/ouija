@@ -122,11 +122,20 @@ app.all('*', function(req, res) {
                         : [ obj.cookies ];
 
                     obj.cookies.forEach(function(c) {
-                        // this will generally favor cookies set by headers to ones
-                        // retrieved by phantom; this is desired because of phantom
-                        // appears to assign the expiry date of one cookie to all on
-                        // the page
-                        cookies[c.name] || (cookies[c.name] = c);
+                        if (cookies[c.name]) {
+                            // it appears that if a cookie on the page has an expiry
+                            // other session cookies on the page (cookies without an
+                            // expiry value) will be incorrectly assigned that expiry
+                            // when attempting to retrieve the cookies via Phantom's
+                            // page.cookie;
+                            //
+                            // as a compromise we'll only update a cookie's value in
+                            // case a script on the page modified the original value
+                            // specified by the request headers
+                            cookies[c.name].value = c.value;
+                        } else {
+                            cookies[c.name] = c;
+                        }
                     });
                 }
 
