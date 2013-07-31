@@ -17,8 +17,8 @@ prog.version(pkg.version)
 var
 
 http = require('http'),
-phantom = require('node-phantom'),
 url = require('url'),
+exec = require('child_process').exec,
 setCookie = require('./lib/setcookie'),
 
 server = http.createServer(function(req, res) {
@@ -26,7 +26,10 @@ server = http.createServer(function(req, res) {
             'disk-cache': true,
             'ignore-ssl-errors': true,
             'max-disk-cache-size': 10*1024 // 10 Mb
-        };
+        },
+        getUnmodifiedContent = req.headers['ouija-get-unmodified-content'],
+        normalizedAddress = url.format(url.parse(req.url)),
+        customHeaders;
 
     // use a proxy if specified
     ['proxy', 'proxy-type', 'proxy-auth'].forEach(function(p) {
@@ -37,154 +40,91 @@ server = http.createServer(function(req, res) {
         }
     });
 
-    phantom.create(function(err, ph) {
-        // catch when the phantom process exits unexpectedly
-        ph.on('exit', function(code, signal) {
-            if (code !== 0) {
-                console.error(signal);
+    // build an object of custom headers
+    for (var h in req.headers) {
+        var match = /^ouija\-pass\-(.*)$/i.exec(h);
 
-                res.writeHead(500);
-                res.write('phantomjs process exited with signal ' + signal);
-                res.end();
+        if (match && match[1]) {
+            customHeaders = customHeaders || {};
+            customHeaders[match[1]] = req.headers[h];
+        }
+    }
+
+    var args = {
+            address: normalizedAddress
+        },
+        script = './lib/repsonse.phantom.js',
+        cmd = ['phantomjs'],
+        cmdOpts = {
+            timeout: 60 * 1000, // one minute
+            maxBuffer: 2000 * 1024 // 2 Mb
+        };
+
+    customHeaders && (args['headers'] = "'" + JSON.stringify(customHeaders) + "'");
+    getUnmodifiedContent && (args['unmodified-content'] = true);
+
+    for (var p in params) {
+        cmd.push('--' + p + '=' + params[p]);
+    }
+
+    cmd.push(script);
+
+    for (var a in args) {
+        var arg = '--' + a,
+            val = args[a];
+
+        if (val !== true) {
+            arg += '=' + val;
+        }
+
+        cmd.push(arg);
+    }
+
+    exec(cmd.join(' '), cmdOpts, function(err, stdout, stderr) {
+        if (err && err.code !== 0) {
+            // return error
+            res.writeHead(500);
+            res.write(stderr);
+            return res.end();
+        }
+
+        var response;
+
+        try {
+            response = JSON.parse(stdout);
+        } catch (ex) {
+            res.writeHead(500);
+            res.write('Unable to parse response');
+            return res.end();
+        }
+
+        // set response headers
+        if (response.headers) {
+            for (var h in response.headers) {
+                res.setHeader(h, response.headers[h]);
+            }
+        }
+
+        // recalculate the Content-Length header
+        res.setHeader('Content-Length', (new Buffer(response.body)).length);
+
+        // add the Set-Cookie header
+        if (response.cookies) {
+            var setCookieHeader = [];
+
+            for (var c in response.cookies) {
+                setCookieHeader.push(setCookie.format(response.cookies[c]));
             }
 
-            return;
-        });
+            setCookieHeader.length && res.setHeader('Set-Cookie', setCookieHeader);
+        }
 
-        ph.createPage(function(err, page) {
-            console.log('=> Opening ' + req.url);
+        // send the response
+        res.writeHead(response.httpStatus || 200);
+        res.write(response.body);
+        return res.end();
+    });
 
-            var response, 
-                cookies = {},
-                customHeaderRE = /^ouija\-pass\-(.*)$/i,
-                customHeaders = {},
-                parsedUrl = url.parse(req.url),
-                sendResponse = function(resBody) {
-                    ph.exit();
-
-                    response && response.headers && response.headers.forEach(function(h) {
-                        if (!/^set\-cookie/i.test(h.name)) {
-                            res.setHeader(h.name, h.value);
-                        }
-                    });
-
-                    var setCookieHeader = [];
-                    for (var c in cookies) {
-                        setCookieHeader.push(setCookie.format(cookies[c]));
-                    }
-                    setCookieHeader.length && res.setHeader('Set-Cookie', setCookieHeader);
-
-                    // ensure we have the correct content-length header in case
-                    // the DOM has been modified
-                    res.setHeader('Content-Length', (new Buffer(resBody)).length);
-
-                    res.writeHead((response && response.status) || 200);
-                    res.write(resBody);
-                    res.end();
-
-                    return;
-                };
-
-            // set the headers to be passed by phantom
-            for (var h in req.headers) {
-                var match = h.match(customHeaderRE);
-
-                if (match && match[1]) {
-                    customHeaders[match[1]] = req.headers[h];
-                }
-            }
-            page.set('customHeaders', customHeaders);
-
-            // NB: need to use the onCallback handler to get around some of the
-            // funny scoping that happens when using phantomjs
-            //
-            // the object argument becomes the primary means of passing data around
-            page.onCallback = function(obj) {
-                if (obj.response) {
-                    var phantomParsedUrl = url.parse(obj.response.url);
-
-                    // compare parsed and formatted urls to account for trailing slashes, etc.
-                    if (!response && url.format(phantomParsedUrl) == url.format(parsedUrl)) {
-                        response = obj.response;
-                    }
-
-                    if (response.headers && phantomParsedUrl.host == parsedUrl.host) {
-                        response.headers.forEach(function(h) {
-                            if (/^set\-cookie/i.test(h.name)) {
-                                var respCookies = setCookie.parse(h.value);
-
-                                obj.cookies = obj.cookies
-                                    ? obj.cookies.concat(respCookies)
-                                    : respCookies;
-                            }
-                        });
-                    }
-                }
-
-                if (obj.cookies) {
-                    obj.cookies = Array.isArray(obj.cookies)
-                        ? obj.cookies
-                        : [ obj.cookies ];
-
-                    obj.cookies.forEach(function(c) {
-                        if (cookies[c.name]) {
-                            // it appears that if a cookie on the page has an expiry
-                            // other session cookies on the page (cookies without an
-                            // expiry value) will be incorrectly assigned that expiry
-                            // when attempting to retrieve the cookies via Phantom's
-                            // page.cookie;
-                            //
-                            // as a compromise we'll only update a cookie's value in
-                            // case a script on the page modified the original value
-                            // specified by the request headers
-                            cookies[c.name].value = c.value;
-                        } else {
-                            cookies[c.name] = c;
-                        }
-                    });
-                }
-
-                if (obj.next) {
-                    if (req.headers['ouija-get-unmodified-content']) {
-                        ph.createPage(function(err, cachedPage) {
-                            cachedPage.set('settings', {
-                                javascriptEnabled: false,
-                                loadImages: false
-                            });
-
-                            cachedPage.set('customHeaders', customHeaders);
-
-                            cachedPage.open(req.url, function(err, status) {
-                                cachedPage.get('content', function(err, content) {
-                                    sendResponse(content);
-                                });
-                            });
-                        });
-                    } else {
-                        page.get('content', function(err, content) {
-                            sendResponse(content);
-                        });
-                    }
-                }
-            };
-
-            page.setFn('onResourceReceived', function(resp) {
-                page.onCallback({ 
-                    response: resp,
-                });
-            });
-
-            page.open(req.url, function(err, status) {
-                page.get('cookies', function(err, cookieData) {
-                    page.onCallback({
-                        next: true,
-                        cookies: cookieData
-                    });
-                });
-            });
-        });
-
-    }, { parameters: params });
 }).listen(prog.port || 6660),
 
 address = server.address();
