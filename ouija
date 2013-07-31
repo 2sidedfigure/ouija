@@ -16,18 +16,12 @@ prog.version(pkg.version)
 
 var
 
-express = require('express'),
+http = require('http'),
 phantom = require('node-phantom'),
 url = require('url'),
-setCookieParser = require('./lib/setcookie').parser,
-app = express();
+setCookie = require('./lib/setcookie'),
 
-//clear out the default 'x-powered-by' header
-app.disable('x-powered-by');
-
-app.use(express.bodyParser());
-
-app.all('*', function(req, res) {
+server = http.createServer(function(req, res) {
     var params = {
             'disk-cache': true,
             'ignore-ssl-errors': true,
@@ -36,7 +30,7 @@ app.all('*', function(req, res) {
 
     // use a proxy if specified
     ['proxy', 'proxy-type', 'proxy-auth'].forEach(function(p) {
-        var header = req.get('ouija-' + p);
+        var header = req.headers['ouija-' + p];
 
         if (header) {
             params[p] = header;
@@ -48,9 +42,13 @@ app.all('*', function(req, res) {
         ph.on('exit', function(code, signal) {
             if (code !== 0) {
                 console.error(signal);
+
+                res.writeHead(500);
+                res.write('phantomjs process exited with signal ' + signal);
+                res.end();
             }
 
-            res.send(500, 'phantomjs process exited with signal ' + signal);
+            return;
         });
 
         ph.createPage(function(err, page) {
@@ -66,26 +64,25 @@ app.all('*', function(req, res) {
 
                     response && response.headers && response.headers.forEach(function(h) {
                         if (!/^set\-cookie/i.test(h.name)) {
-                            res.set(h.name, h.value);
+                            res.setHeader(h.name, h.value);
                         }
                     });
 
+                    var setCookieHeader = [];
                     for (var c in cookies) {
-                        var cookie = cookies[c];
-
-                        cookie.maxAge && (cookie.maxAge *= 1000);
-                        if (cookie.expires && !(cookie.expires instanceof Date)) {
-                            cookie.expires = new Date(cookie.expires);
-                        }
-
-                        res.cookie(cookies[c].name, cookies[c].value, cookies[c]);
+                        setCookieHeader.push(setCookie.format(cookies[c]));
                     }
+                    setCookieHeader.length && res.setHeader('Set-Cookie', setCookieHeader);
 
                     // ensure we have the correct content-length header in case
                     // the DOM has been modified
-                    res.set('Content-Length', (new Buffer(resBody)).length);
+                    res.setHeader('Content-Length', (new Buffer(resBody)).length);
 
-                    return res.send(response.status || 200, resBody);
+                    res.writeHead((response && response.status) || 200);
+                    res.write(resBody);
+                    res.end();
+
+                    return;
                 };
 
             // set the headers to be passed by phantom
@@ -114,11 +111,11 @@ app.all('*', function(req, res) {
                     if (response.headers && phantomParsedUrl.host == parsedUrl.host) {
                         response.headers.forEach(function(h) {
                             if (/^set\-cookie/i.test(h.name)) {
-                                var cookies = setCookieParser(h.value);
+                                var respCookies = setCookie.parse(h.value);
 
                                 obj.cookies = obj.cookies
-                                    ? obj.cookies.concat(cookies)
-                                    : cookies;
+                                    ? obj.cookies.concat(respCookies)
+                                    : respCookies;
                             }
                         });
                     }
@@ -148,7 +145,7 @@ app.all('*', function(req, res) {
                 }
 
                 if (obj.next) {
-                    if (req.get('ouija-get-unmodified-content')) {
+                    if (req.headers['ouija-get-unmodified-content']) {
                         ph.createPage(function(err, cachedPage) {
                             cachedPage.set('settings', {
                                 javascriptEnabled: false,
@@ -188,9 +185,8 @@ app.all('*', function(req, res) {
         });
 
     }, { parameters: params });
-});
+}).listen(prog.port || 6660),
 
-var server = app.listen(prog.port || 6660),
-    address = server.address();
+address = server.address();
 
 console.log('=> Ouija listening on ' + address.address + ':' + address.port);
