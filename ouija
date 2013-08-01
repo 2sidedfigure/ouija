@@ -17,111 +17,64 @@ prog.version(pkg.version)
 var
 
 http = require('http'),
-url = require('url'),
-exec = require('child_process').exec,
+responseLib = require('./lib/response'),
 setCookie = require('./lib/setcookie'),
 
 server = http.createServer(function(req, res) {
-    var params = {
-            'disk-cache': true,
-            'ignore-ssl-errors': true,
-            'max-disk-cache-size': 10*1024 // 10 Mb
-        },
-        getUnmodifiedContent = req.headers['ouija-get-unmodified-content'],
-        normalizedAddress = url.format(url.parse(req.url)),
-        customHeaders;
+    var response = responseLib.create(req.url, {
+            returnUnmodifiedContent: !!req.headers['ouija-get-unmodified-content'],
+            debug: true
+        });
 
     // use a proxy if specified
-    ['proxy', 'proxy-type', 'proxy-auth'].forEach(function(p) {
-        var header = req.headers['ouija-' + p];
+    ['proxy', 'proxy-type', 'proxy-auth'].forEach(function(key) {
+        var val = req.headers['ouija-' + key];
 
-        if (header) {
-            params[p] = header;
-        }
+        val && response.setPhantomParameter(key, val);
     });
 
-    // build an object of custom headers
+    // set custom headers
     for (var h in req.headers) {
         var match = /^ouija\-pass\-(.*)$/i.exec(h);
 
         if (match && match[1]) {
-            customHeaders = customHeaders || {};
-            customHeaders[match[1]] = req.headers[h];
+            response.setCustomHeader(match[1], req.headers[h]);
         }
     }
 
-    var args = {
-            address: normalizedAddress
-        },
-        script = './lib/repsonse.phantom.js',
-        cmd = ['phantomjs'],
-        cmdOpts = {
-            timeout: 60 * 1000, // one minute
-            maxBuffer: 2000 * 1024 // 2 Mb
-        };
+    response.fetch(function(err, phRes, debug) {
+        debug && debug.length && console.log(debug);
 
-    customHeaders && (args['headers'] = "'" + JSON.stringify(customHeaders) + "'");
-    getUnmodifiedContent && (args['unmodified-content'] = true);
-
-    for (var p in params) {
-        cmd.push('--' + p + '=' + params[p]);
-    }
-
-    cmd.push(script);
-
-    for (var a in args) {
-        var arg = '--' + a,
-            val = args[a];
-
-        if (val !== true) {
-            arg += '=' + val;
-        }
-
-        cmd.push(arg);
-    }
-
-    exec(cmd.join(' '), cmdOpts, function(err, stdout, stderr) {
-        if (err && err.code !== 0) {
-            // return error
-            res.writeHead(500);
-            res.write(stderr);
-            return res.end();
-        }
-
-        var response;
-
-        try {
-            response = JSON.parse(stdout);
-        } catch (ex) {
-            res.writeHead(500);
-            res.write('Unable to parse response');
+        if (err) {
+            res.writeHead(err.status);
+            res.write(err.message);
             return res.end();
         }
 
         // set response headers
-        if (response.headers) {
-            for (var h in response.headers) {
-                res.setHeader(h, response.headers[h]);
+        if (phRes.headers) {
+            for (var h in phRes.headers) {
+                res.setHeader(h, phRes.headers[h]);
             }
         }
 
         // recalculate the Content-Length header
-        res.setHeader('Content-Length', (new Buffer(response.body)).length);
+        res.setHeader('Content-Length', (new Buffer(phRes.body)).length);
 
         // add the Set-Cookie header
-        if (response.cookies) {
+        if (phRes.cookies) {
             var setCookieHeader = [];
 
-            for (var c in response.cookies) {
-                setCookieHeader.push(setCookie.format(response.cookies[c]));
+            for (var c in phRes.cookies) {
+                setCookieHeader.push(setCookie.format(phRes.cookies[c]));
             }
 
-            setCookieHeader.length && res.setHeader('Set-Cookie', setCookieHeader);
+            res.setHeader('Set-Cookie', setCookieHeader);
         }
 
         // send the response
-        res.writeHead(response.httpStatus || 200);
-        res.write(response.body);
+        res.writeHead(phRes.httpStatus || 200);
+        res.write(phRes.body);
         return res.end();
     });
 
