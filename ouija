@@ -23,6 +23,7 @@ setCookie = require('./lib/setcookie'),
 server = http.createServer(function(req, res) {
     var response = responseLib.create(req.url, {
             returnUnmodifiedContent: !!req.headers['ouija-get-unmodified-content'],
+            wait: req.headers['ouija-wait'],
             debug: true
         });
 
