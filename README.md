@@ -38,6 +38,30 @@ SILENT, ERROR, WARN, DEBUG; defaults to ERROR):
 $ ./ouija -l DEBUG
 ```
 
+Assets from specific hosts can be prevented from loading by supplying a blacklist file via the `-b, --blacklist` option:
+
+```
+$ ./ouija -b /tmp/blacklist.json
+```
+
+where */tmp/blacklist.json* looks like:
+
+```
+{
+    "blacklist": [
+        "example.com",
+        "bar.com"
+    ]
+}
+```
+
+Given the above sample file, assets from the following hosts will be blocked:
+
+ - example.com
+ - *.example.com
+ - bar.com
+ - *.bar.com
+
 Once the server is up and running, simply issue requests to it like you would
 to any other proxy server. This means providing the host when requesting the
 resource, e.g.:
