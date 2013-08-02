@@ -30,6 +30,14 @@ using the `-p, --port` option:
 $ ./ouija -p 8080
 ```
 
+...and optionally specify a logging level using `-l, --log-level` (one of
+SILENT, ERROR, WARN, DEBUG; defaults to ERROR):
+
+
+```
+$ ./ouija -l DEBUG
+```
+
 Once the server is up and running, simply issue requests to it like you would
 to any other proxy server. This means providing the host when requesting the
 resource, e.g.:
