@@ -10,6 +10,7 @@ pkg = require('./package.json');
 prog.version(pkg.version)
     .usage('[options]')
     .option('-p, --port <n>', 'The port to bind the proxy server to, defaults to 6660', parseInt)
+    .option('-l, --log-level <level>', 'Set how noisy the log output is (SILENT|ERROR|WARN|DEBUG) [ERROR]', 'ERROR')
     .parse(process.argv);
 
 // if the user hasn't requested help or the version, time to get to work
@@ -24,7 +25,7 @@ server = http.createServer(function(req, res) {
     var response = responseLib.create(req.url, {
             returnUnmodifiedContent: !!req.headers['ouija-get-unmodified-content'],
             wait: req.headers['ouija-wait'],
-            logLevel: 'DEBUG'
+            logLevel: prog.logLevel
         });
 
     // use a proxy if specified
