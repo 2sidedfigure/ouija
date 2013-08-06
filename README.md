@@ -90,13 +90,13 @@ case-insensitive.
 
  - **Ouija-Proxy**: Specify a proxy server to use (e.g. 10.10.10.10:8080).
 
- - **Ouija-Proxy-Type**: Set the type of proxy server (one of http, socks5 or 
+ - **Ouija-Proxy-Type**: Set the type of proxy server (one of http, socks5 or
    none; defaults to http).
 
  - **Ouija-Proxy-Auth**: Authentication information for the proxy server
    (e.g. username:password).
 
- - **Ouija-Wait**: Delay the capture of the URL contents by the provided number 
+ - **Ouija-Wait**: Delay the capture of the URL contents by the provided number
    of milliseconds (e.g. 2000).
 
  - **Ouija-Pass-***: Any headers prefixed with *Ouija-Pass-* will be used in
