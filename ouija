@@ -77,6 +77,18 @@ server = http.createServer(function(req, res) {
             res.setHeader('Set-Cookie', setCookieHeader);
         }
 
+        // add the Ouija-JS-Error headers
+        if (phRes.errors) {
+            var errorHeader = [];
+
+            for (var e in phRes.errors) {
+                var msg = phRes.errors[e].message.replace(/:/g, ';');
+                errorHeader.push(msg);
+            }
+
+            res.setHeader('Ouija-JS-Error', errorHeader);
+        }
+
         // send the response
         res.writeHead(phRes.httpStatus || 200);
         res.write(phRes.body);
