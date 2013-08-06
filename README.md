@@ -83,6 +83,11 @@ case-insensitive.
    Passing this header will ensure you recieve the unmodified source. The value
    of the header is inconsequential; Ouija only checks for its presence.
 
+ - **Ouija-Follow-HTTP-Redirect**: Normally, Ouija will return the HTTP
+   redirect response and not the resource specified by the redirect. By passing
+   this header, Ouija will follow the HTTP redirect and return the response
+   received by requesting the resource referenced by the redirect.
+
  - **Ouija-Proxy**: Specify a proxy server to use (e.g. 10.10.10.10:8080).
 
  - **Ouija-Proxy-Type**: Set the type of proxy server (one of http, socks5 or 
