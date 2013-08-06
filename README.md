@@ -74,6 +74,8 @@ resource, e.g.:
 
 ### Special HTTP Headers
 
+#### Request Headers
+
 Ouija accepts some special HTTP headers for manipulating the response or
 configuring the resulting request. As usual, the header names are
 case-insensitive.
@@ -108,6 +110,11 @@ case-insensitive.
    ...will result in the following header in the resulting request:
 
     > User-Agent: Ouijabot
+
+#### Response Headers
+
+If the requested page has any JavaScript errors, the error message will be
+returned as the value of the **Ouija-JS-Error** header.
 
 ## Author
 
