@@ -99,8 +99,16 @@ server = http.createServer(function(req, res) {
         return res.end();
     });
 
-}).listen(port),
+})
+.on('error', function(e) {
+    console.error(e.toString());
+    process.exit(1);
+})
+.on('listening', function() {
+    var address = server.address();
 
-address = server.address();
+    console.log('=> Ouija listening on ' + address.address + ':' + address.port);
+});
 
-console.log('=> Ouija listening on ' + address.address + ':' + address.port);
+server.listen(port);
+
