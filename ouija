@@ -22,6 +22,10 @@ http = require('http'),
 responseLib = require('./lib/response'),
 setCookie = require('./lib/setcookie'),
 
+port = prog.port || prog.port === 0
+    ? prog.port
+    : 6660,
+
 server = http.createServer(function(req, res) {
     var response = responseLib.create(req.url, {
             returnUnmodifiedContent: !!req.headers['ouija-get-unmodified-content'],
@@ -95,7 +99,7 @@ server = http.createServer(function(req, res) {
         return res.end();
     });
 
-}).listen(prog.port || 6660),
+}).listen(port),
 
 address = server.address();
 
