@@ -36,7 +36,8 @@ server = http.createServer(function(req, res) {
             followHttpRedirect: !!req.headers['ouija-follow-http-redirect'],
             wait: req.headers['ouija-wait'],
             logLevel: prog.logLevel,
-            blacklist: prog.blacklist
+            blacklist: prog.blacklist,
+            localStorageId: req.headers['ouija-local-storage-id']
         });
 
     // use a proxy if specified
