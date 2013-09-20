@@ -12,9 +12,13 @@ prog.version(pkg.version)
     .option('-p, --port <n>', 'The port to bind the proxy server to, defaults to 6660', parseInt)
     .option('-l, --log-level <level>', 'Set how noisy the log output is (SILENT|ERROR|WARN|DEBUG) [ERROR]', 'ERROR')
     .option('-b, --blacklist <file>', 'Specify a host blacklist configuration file')
+    .option('-s, --storage-path <path>', 'Set the local storage path [$HOMEDIR/.ouija/localstorage]')
     .parse(process.argv);
 
 // if the user hasn't requested help or the version, time to get to work
+
+// set the local storage path if provided
+prog.storagePath && responseLib.localStoragePath(prog.storagePath);
 
 var
 
