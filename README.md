@@ -17,50 +17,77 @@ $ npm install ouija
 
 ## Usage
 
-Start the server by running:
+```
+ouija [options]
+```
+
+At its most basic, start the server by running:
 
 ```
 $ ./ouija
 ```
 
-...which defaults to port 6660. You can specify a port to bind to at startup by
-using the `-p, --port` option:
+### Options
 
-```
-$ ./ouija -p 8080
-```
+ - `-h, --help`: Display usage information.
 
-...and optionally specify a logging level using `-l, --log-level` (one of
-SILENT, ERROR, WARN, DEBUG; defaults to ERROR):
+ - `-V, --version`: Display the version number.
 
+ - `-p, --port <n>`: The port to bind the proxy server to, defaults to 6660.
 
-```
-$ ./ouija -l DEBUG
-```
+   *Example*:
+   ```
+   $ ./ouija -p 8080
+   ```
 
-Assets from specific hosts can be prevented from loading by supplying a blacklist file via the `-b, --blacklist` option:
+   ...binds Ouija to port 8080.
 
-```
-$ ./ouija -b /tmp/blacklist.json
-```
+ - `-l, --log-level <level>`: Set how noisy the log output is. Accepted values
+   are **SILENT**, **ERROR**, **WARN**, or **DEBUG**; defaults to **ERROR**.
 
-where */tmp/blacklist.json* looks like:
+   *Example*:
+   ```
+   $ ./ouija -l DEBUG
+   ```
 
-```
-{
-    "blacklist": [
-        "example.com",
-        "bar.com"
-    ]
-}
-```
+   ...sets the logging output to **DEBUG**.
 
-Given the above sample file, assets from the following hosts will be blocked:
+ - `-b, --blacklist <file>`: Specify a host blacklist configuration file,
+   preventing the loading of assets from specific hosts. The blacklist
+   configuration file should be well formatted JSON; a single key **blacklist**
+   referencing an array of host strings.
 
- - example.com
- - *.example.com
- - bar.com
- - *.bar.com
+   *Example*:
+   ```
+   $ cat blacklist.json
+   {
+       "blacklist": [
+           "example.com",
+           "bar.com"
+       ]
+   }
+   $ ./ouija -b blacklist.json
+   ```
+
+   ...would prevent the loading of assets from the following hosts:
+
+    - example.com
+    - *.example.com
+    - bar.com
+    - *.bar.com
+
+ - `-s, --storage-path <path>`: Set the path used by PhantomJS for local
+   storage and client-side SQLite databases; defaults to
+   **$HOMEDIR/.ouija/localstorage**. If the supplied directory doesn't exist,
+   it will be created.
+
+   *Example*:
+   ```
+   $ ./ouija -s /tmp/ouija
+   ```
+
+   ...would change the directory PhantomJS uses to store local data to
+   **/tmp/ouija**.
 
 Once the server is up and running, simply issue requests to it like you would
 to any other proxy server. This means providing the host when requesting the
@@ -100,6 +127,10 @@ case-insensitive.
 
  - **Ouija-Wait**: Delay the capture of the URL contents by the provided number
    of milliseconds (e.g. 2000).
+
+ - **Ouija-Local-Storage-Id**: Set the local storage ID, allowing local storage
+   and client-side SQLite databases to be shared across/isolated to specific
+   requests.
 
  - **Ouija-Pass-***: Any headers prefixed with *Ouija-Pass-* will be used in
    the resulting request (with *Ouija-Pass-* stripped from the name). E.g.,
